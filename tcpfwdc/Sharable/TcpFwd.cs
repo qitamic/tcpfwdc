@@ -59,36 +59,43 @@ public class TcpFwd
 	private void wgConnect_Work(TcpClient tcpc)
 	{
 		Socket soc = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-		//proxy / direct connection
-		while (true)
+		bool bOk = false;
+		try
 		{
-			try
+			if (epProxy != null)
 			{
-				if (epProxy != null)
-				{
-					byte[] byResponse = new byte[1024];
-					soc.Connect(epProxy);
-					soc.Send(byConnect);
-					soc.Receive(byResponse);
-					string sResponse = enc.GetString(byResponse);
-					if (sResponse.StartsWith("HTTP") && sResponse.Contains(" 200 "))
-						break;
-				}
-				else
-				{
-					soc.Connect(epRemote);
-					break;
-				}
+				//http proxy
+				byte[] byResponse = new byte[1024];
+				soc.Connect(epProxy);
+				soc.Send(byConnect);
+				soc.Receive(byResponse);
+				string sResponse = enc.GetString(byResponse);
+				if (sResponse.StartsWith("HTTP") && sResponse.Contains(" 200 "))
+					bOk = true;
 			}
-			catch (Exception ex){ }
-
-			Thread.Sleep(5000);
+			else
+			{
+				//direct connection
+				soc.Connect(epRemote);
+				bOk = true;
+			}
 		}
+		catch (Exception ex) { }
 
-		//exchange
-		wgForwarder.Do(tcpc.Client, soc);
-		wgForwarder.Do(soc, tcpc.Client);
+		//data exchange
+		if (bOk)
+		{
+			wgForwarder.Do(tcpc.Client, soc);
+			wgForwarder.Do(soc, tcpc.Client);
+		}
+		else
+		{
+			try { tcpc.Client.Close(); }
+			catch { }
+
+			try { soc.Close(); }
+			catch { }
+		}
 	}
 
 	//server <-> client

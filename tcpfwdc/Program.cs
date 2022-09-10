@@ -18,11 +18,12 @@ namespace tcpfwdc
 				int iLocalPort = 0, iRemotePort = 0, iProxyPort = 0;
 
 				string sErrorArg = "";
-				if (!IPAddress.TryParse(args[0], out ipLocal)) sErrorArg = args[0];
+
+				if (!GetIp(args[0], out ipLocal, out sErrorArg)) { }
 				else if (!int.TryParse(args[1], out iLocalPort)) sErrorArg = args[1];
-				else if (!IPAddress.TryParse(args[2], out ipRemote)) sErrorArg = args[2];
+				else if (!GetIp(args[2], out ipRemote, out sErrorArg)) { }
 				else if (!int.TryParse(args[3], out iRemotePort)) sErrorArg = args[3];
-				else if (args.Length > 5 && !IPAddress.TryParse(args[4], out ipProxy)) sErrorArg = args[4];
+				else if (args.Length > 5 && !GetIp(args[4], out ipProxy, out sErrorArg)) { }
 				else if (args.Length > 5 && !int.TryParse(args[5], out iProxyPort)) sErrorArg = args[5];
 
 				if (sErrorArg.Length == 0)
@@ -78,6 +79,39 @@ namespace tcpfwdc
 			Console.WriteLine();
 			Console.WriteLine("Press any key to exit . . .");
 			Console.ReadKey();
+		}
+		private static bool GetIp(string hostNameOrAddress, out IPAddress ip, out string errorMsg)
+		{
+			ip = null;
+			errorMsg = "";
+
+			try
+			{
+				bool bIsIp = IPAddress.TryParse(hostNameOrAddress, out ip);
+
+				if (bIsIp)
+				{
+					return true;
+				}
+				else
+				{
+					IPAddress[] ipAll = Dns.GetHostAddresses(hostNameOrAddress);
+					for (int i = 0; i < ipAll.Length; i++)
+					{
+						if (ipAll[i].AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+						{
+							ip = ipAll[i];
+							return true;
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				errorMsg = hostNameOrAddress + ": "+ ex.Message;
+			}
+
+			return false;
 		}
 
 		[DllImport("kernel32.dll")]
